@@ -1,0 +1,25 @@
+mode: standalone
+replicas: 1
+
+rootUser: <user>
+rootPassword: <password>
+
+persistence:
+  enabled: true
+  existingClaim: minio-pvc
+  storageClass: local-minio
+  accessMode: ReadWriteOnce
+  size: 20Gi
+
+resources:
+  requests:
+    memory: 1Gi
+
+service:
+  type: ClusterIP
+
+environment:
+  MINIO_BROWSER_REDIRECT_URL: <redirect_url>
+
+nodeSelector:
+  kubernetes.io/hostname: <woker_node>

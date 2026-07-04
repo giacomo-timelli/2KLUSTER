@@ -1,0 +1,127 @@
+# ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-application-proxy-nginx-config
+  namespace: web-application-ns
+data:
+  nginx.conf: |
+    events {}
+
+    http {
+      map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+      }
+
+      server {
+        listen 8080;
+        server_name _;
+
+        location = /2kluster {
+          return 301 /2kluster/;
+        }
+
+        location /2kluster/ {
+          proxy_pass http://web-application.web-application-ns.svc.cluster.local:8501;
+
+          proxy_http_version 1.1;
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+
+          proxy_buffering off;
+          proxy_read_timeout 86400;
+          proxy_send_timeout 86400;
+        }
+      }
+    }
+
+---
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-application-proxy
+  namespace: web-application-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-application-proxy
+  template:
+    metadata:
+      labels:
+        app: web-application-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: web-application-proxy-nginx-config
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-application-proxy
+  namespace: web-application-ns
+spec:
+  type: ClusterIP
+  selector:
+    app: web-application-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-application-ingress
+  namespace: web-application-ns
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/auth-url: <AUTH_URI>
+    nginx.ingress.kubernetes.io/auth-signin: <AUTH_SIGNIN>
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <HOST>
+      secretName: <TLS_CERTIFICATE>
+  rules:
+    - host: <HOST>
+      http:
+        paths:
+          - path: /2kluster
+            pathType: Prefix
+            backend:
+              service:
+                name: web-application-proxy
+                port:
+                  number: 8080

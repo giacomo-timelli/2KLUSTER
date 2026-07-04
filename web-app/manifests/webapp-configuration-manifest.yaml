@@ -1,0 +1,188 @@
+# Namespace
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-application-ns
+
+---
+
+# ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-application-configmap
+  namespace: web-application-ns
+data:
+  HPC_LOGIN: <<HPC_PORTAL_HOSTNAME>>
+  BRIDGE_HOST: <bridge_private_ip>
+  BRIDGE_USER: <bridge_user>
+  MINIO_ENDPOINT: <MINIO_endpoint>
+  MINIO_BUCKET: <bucket_name>
+  MINIO_CLIENT_ID: <MINIO_client_id>
+
+---
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-application
+  namespace: web-application-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-application
+  template:
+    metadata:
+      labels:
+        app: web-application
+    spec:
+      containers:
+        - name: web-application
+          image: bkemec/namd-streamlit:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8501
+              name: http
+          envFrom:
+            - configMapRef:
+                name: web-application-configmap
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: STREAMLIT_SERVER_BASE_URL_PATH
+              value: "2kluster"
+            - name: STREAMLIT_SERVER_ENABLE_CORS
+              value: "false"
+            - name: STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION
+              value: "false"
+          command:
+            - streamlit
+            - run
+            - streamlit_app.py
+            - --server.port=8501
+            - --server.address=0.0.0.0
+            - --server.baseUrlPath=2kluster
+
+          volumeMounts:
+            - name: ssh-key
+              mountPath: /secrets/ssh
+              readOnly: true
+
+            - name: oidc-storage
+              mountPath: /root/.config/oidc-agent
+
+      volumes:
+        - name: hpc-ssh-key
+          secret:
+            secretName: hpc-ssh-key
+            defaultMode: 0400
+
+        - name: oidc-storage
+          persistentVolumeClaim:
+            claimName: oidc-pvc
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-application
+  namespace: web-application-ns
+spec:
+  type: ClusterIP
+  selector:
+    app: web-application
+  ports:
+    - name: http
+      port: 8501
+      targetPort: 8501
+
+---
+
+# 1st PersistentVolume
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: oidc-pv-agent1
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: <local_mount_path>
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - <worker_node_1>
+---
+
+# PeristentVolume
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: oidc-pv-agent2
+spec:
+  capacity:
+    storage: 20Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: <local_mount_path>
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - <worker_node_2>
+---
+
+# PersistentVolumeClaim
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: oidc-pvc
+  namespace: web-application-ns
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage
+
+---
+
+# Secret
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ssh-key
+  namespace: web-application-ns
+type: Opaque
+data:
+  id_rsa: <SSH_KEY>
+

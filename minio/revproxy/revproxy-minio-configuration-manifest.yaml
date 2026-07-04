@@ -1,0 +1,124 @@
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-proxy
+  namespace: minio-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio-proxy
+  template:
+    metadata:
+      labels:
+        app: minio-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: minio-proxy-nginx-config
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-proxy
+  namespace: minio-system
+spec:
+  selector:
+    app: minio-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+
+# ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-proxy-nginx-config
+  namespace: minio-system
+data:
+  nginx.conf: |
+    events {}
+
+    http {
+      server {
+        listen 8080;
+        server_name _;
+
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        client_max_body_size 0;
+
+        location / {
+          proxy_pass http://minio.minio-system.svc.cluster.local:9000/;
+
+          proxy_set_header Host $http_host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+
+          add_header Access-Control-Allow-Origin "*" always;
+          add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
+          add_header Access-Control-Allow-Headers "*" always;
+          add_header Access-Control-Expose-Headers "Accept-Ranges, Content-Length, Content-Range, ETag" always;
+
+          if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin "*" always;
+            add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "*" always;
+            add_header Access-Control-Max-Age 3600 always;
+            return 204;
+          }
+        }
+      }
+    }
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-proxy-ingress
+  namespace: minio-system
+  annotations:
+    cert-manager.io/cluster-issuer: <cluster-issuer>
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <host>
+      secretName: <tls_certificate>
+  rules:
+    - host: <host>
+      http:
+        paths:
+          - path: /files(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: minio-proxy
+                port:
+                  number: 8080

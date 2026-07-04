@@ -1,0 +1,136 @@
+# Secret
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth2-proxy-molstar-secret
+  namespace: molstar-ns
+type: Opaque
+stringData:
+  client-id: <CLIENT_ID>
+  client-secret: <CLIENT_SECRET>
+  cookie-secret: <COOKIE_SECRET>
+
+---
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy-molstar
+  namespace: molstar-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy-molstar
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy-molstar
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url= <oidc-issuer>
+            - --http-address= <http-address>
+            - --proxy-prefix=/oauth2-molstar
+            - --redirect-url= <redirect_url>
+            - --whitelist-domain= <host>
+            - --upstream=file:///dev/null
+            - --email-domain=*
+            - --scope=openid profile email
+            - --oidc-groups-claim=groups
+            - --allowed-group=minio
+            - --allowed-group=consoleAdmin
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --pass-access-token=true
+            - --pass-authorization-header=true
+            - --pass-user-headers=true
+            - --skip-provider-button=true
+            - --cookie-expire=1h
+            - --cookie-refresh=30m
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-molstar-secret
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-molstar-secret
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-molstar-secret
+                  key: cookie-secret
+          ports:
+            - containerPort: 4180
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 4180
+            initialDelaySeconds: 10
+            periodSeconds: 20
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy-molstar
+  namespace: molstar-ns
+spec:
+  selector:
+    app: oauth2-proxy-molstar
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4180
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy-molstar
+  namespace: molstar-ns
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <host>
+      secretName: <tls_certificate>
+  rules:
+    - host: <host>
+      http:
+        paths:
+          - path: /oauth2-molstar
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy-molstar
+                port:
+                  number: 80

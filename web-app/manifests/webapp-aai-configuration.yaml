@@ -1,0 +1,121 @@
+# Secret
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: oauth2-proxy-web-application-secret
+  namespace: web-application-ns
+type: Opaque
+stringData:
+  client-id: <CLIENT_ID>
+  client-secret: <CLIENT_SECRET>
+  cookie-secret: <COOKIE_SECRET>
+
+---
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy-web-application
+  namespace: web-application-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy-web-application
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy-web-application
+    spec:
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+          args:
+            - --provider=oidc
+            - --oidc-issuer-url= <OIDC_ISSUER_URL>
+            - --http-address= <HTTP_ADDRESS>
+            - --proxy-prefix=/oauth2-2kluster
+            - --redirect-url= <REDIRECT_URL>
+            - --whitelist-domain= <HOST>
+            - --upstream=file:///dev/null
+            - --email-domain=*
+            - --scope=openid profile email
+            - --oidc-groups-claim=groups
+            - --allowed-group=minio
+            - --allowed-group=consoleAdmin
+            - --cookie-secure=true
+            - --cookie-samesite=lax
+            - --reverse-proxy=true
+            - --set-xauthrequest=true
+            - --pass-access-token=true
+            - --pass-authorization-header=true
+            - --pass-user-headers=true
+            - --skip-provider-button=true
+            - --cookie-expire=1h
+            - --cookie-refresh=30m
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-web-application-secret
+                  key: client-id
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-web-application-secret
+                  key: client-secret
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oauth2-proxy-web-application-secret
+                  key: cookie-secret
+          ports:
+            - containerPort: 4180
+              name: http
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy-web-application
+  namespace: web-application-ns
+spec:
+  selector:
+    app: oauth2-proxy-web-application
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4180
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy-web-application
+  namespace: web-application-ns
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <HOST>
+      secretName: <TLS_CERTIFICATE>
+  rules:
+    - host: <HOST>
+      http:
+        paths:
+          - path: /oauth2-2kluster
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy-web-application
+                port:
+                  number: 80

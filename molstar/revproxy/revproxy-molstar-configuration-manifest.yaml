@@ -1,0 +1,119 @@
+# ConfigMap 
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: molstar-proxy-nginx-config
+  namespace: molstar-ns
+data:
+  nginx.conf: |
+    events {}
+
+    http {
+      server {
+        listen 8080;
+        server_name _;
+
+        location = /molstar {
+          return 301 /molstar/;
+        }
+
+        location /molstar/ {
+          proxy_pass http://molstar.molstar-ns.svc.cluster.local:80/;
+          proxy_http_version 1.1;
+
+          proxy_set_header Host $host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $scheme;
+
+          proxy_buffering off;
+          proxy_read_timeout 86400;
+          proxy_send_timeout 86400;
+        }
+      }
+    }
+
+---
+
+# Deployment
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: molstar-proxy
+  namespace: molstar-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: molstar-proxy
+  template:
+    metadata:
+      labels:
+        app: molstar-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:stable
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: molstar-proxy-nginx-config
+
+---
+
+# Service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: molstar-proxy
+  namespace: molstar-ns
+spec:
+  type: ClusterIP
+  selector:
+    app: molstar-proxy
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+
+---
+
+# Ingress
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: molstar-ingress
+  namespace: molstar-ns
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/auth-url: <auth-url>
+    nginx.ingress.kubernetes.io/auth-signin: <auth-signin>
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - <host>
+      secretName: <tls_certificate>
+  rules:
+    - host: <host>
+      http:
+        paths:
+          - path: /molstar
+            pathType: Prefix
+            backend:
+              service:
+                name: molstar-proxy
+                port:
+                  number: 8080
