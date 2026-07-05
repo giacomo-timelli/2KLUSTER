@@ -33,7 +33,7 @@ metadata:
   name: minio-console-ingress
   namespace: minio-system
   annotations:
-    cert-manager.io/cluster-issuer: <cluster-issuer>
+    cert-manager.io/cluster-issuer: <CLUSTER-ISSUER>
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$1
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
@@ -42,9 +42,9 @@ spec:
   tls:
     - hosts:
         - <host>
-      secretName: <tls_certificate>
+      secretName: <TLS_CERTIFICATE>
   rules:
-    - host: <host>
+    - host: <HOST>
       http:
         paths:
           - path: /console/?(.*)
@@ -65,16 +65,16 @@ metadata:
   name: minio-api-ingress
   namespace: minio-system
   annotations:
-    cert-manager.io/cluster-issuer: <cluster-issuer>
+    cert-manager.io/cluster-issuer: <CLUSTER-ISSUER>
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - <host>
-      secretName: <tls_certificate>
+      secretName: <TLS_CERTIFICATE>
   rules:
-    - host: <host>
+    - host: <HOST>
       http:
         paths:
           - path: /
@@ -113,7 +113,7 @@ spec:
   storageClassName: local-minio
   persistentVolumeReclaimPolicy: Retain
   local:
-    path: <local_mount_path>
+    path: <LOCAL_MOUNT_PATH>
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -121,7 +121,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - <woker_node>
+                - <WORKER_NODE>
 
 ---
 
@@ -136,7 +136,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   storageClassName: local-minio
-  volumeName: <volume_name>
+  volumeName: <VOLUME_NAME>
   resources:
     requests:
       storage: 20Gi
