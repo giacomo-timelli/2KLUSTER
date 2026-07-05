@@ -38,7 +38,7 @@ spec:
             - --oidc-issuer-url= <OIDC-ISSUER>
             - --http-address= <HTTP-ADDRESS>
             - --proxy-prefix=/oauth2-2kluster
-            - --redirect-url= <REDIRECT_URL>
+            - --redirect-url= <REDIRECT-URL>
             - --whitelist-domain= <HOST>
             - --upstream=file:///dev/null
             - --email-domain=*
