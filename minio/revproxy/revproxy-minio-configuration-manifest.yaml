@@ -109,8 +109,8 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - <host>
-      secretName: <tls_certificate>
+        - <HOST>
+      secretName: <TLS_CERTIFICATE>
   rules:
     - host: <host>
       http:
