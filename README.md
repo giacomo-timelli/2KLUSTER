@@ -147,31 +147,11 @@ The main difference is that MinIO directly supports OIDC and can map identity cl
 
 ## MinIO OIDC integration and group-based authorization
 
-MinIO is configured to use INDIGO-IAM as an OIDC identity provider.
-
-The general authentication flow is:
-
-```text
-User
- │
- ▼
-INDIGO-IAM login
- │
- ▼
-JWT token containing user claims
- │
- ▼
-MinIO
- │
- ▼
-Policy assignment based on groups claim
-```
-
 OIDC integration can be configured with the MinIO client using:
 
 ```bash
 mc admin config set myminio identity_openid \
-  config_url="https://iam-demo.cloud.cnaf.infn.it/.well-known/openid-configuration" \
+  config_url= <OPENID-CONFIGURATION-URL> \
   client_id="<CLIENT_ID>" \
   claim_name="groups" \
   scopes="openid,profile,email"
@@ -205,37 +185,6 @@ The repository includes an example policy for normal users in:
 minio/manifests/minio-user-policy.json
 ```
 
-An example policy is:
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "s3:ListAllMyBuckets",
-        "s3:GetBucketLocation",
-        "s3:ListBucket"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::*"
-      ]
-    },
-    {
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject"
-      ],
-      "Effect": "Allow",
-      "Resource": [
-        "arn:aws:s3:::*/*"
-      ]
-    }
-  ]
-}
-```
-
 The policy can be loaded in MinIO with:
 
 ```bash
@@ -257,99 +206,6 @@ Authentication → INDIGO-IAM
 Authorization  → MinIO policies
 ```
 
-## oauth2-proxy integration for Mol* and 2KLUSTER
-
-Mol* and the 2KLUSTER web application do not implement native OIDC authentication or fine-grained RBAC internally. For this reason, access is enforced at the Ingress level through oauth2-proxy.
-
-The general flow is:
-
-```text
-Browser
- │
- ▼
-NGINX Ingress
- │
- ▼
-oauth2-proxy
- │
- ▼
-INDIGO-IAM login
- │
- ▼
-Application access
-```
-
-oauth2-proxy handles the OIDC login flow, creates the authenticated session and decides whether the user is allowed to access the protected application.
-
-A simplified oauth2-proxy configuration includes:
-
-```yaml
-- --provider=oidc
-- --oidc-issuer-url=https://iam-demo.cloud.cnaf.infn.it/
-- --redirect-url=https://<HOST>/oauth2/callback
-- --scope=openid profile email
-- --oidc-groups-claim=groups
-```
-
-Group-based access filtering can be configured with:
-
-```yaml
-- --allowed-group=minio
-- --allowed-group=consoleAdmin
-```
-
-The protected Ingress uses annotations such as:
-
-```yaml
-nginx.ingress.kubernetes.io/auth-url: "https://$host/oauth2/auth"
-nginx.ingress.kubernetes.io/auth-signin: "https://$host/oauth2/start?rd=$escaped_request_uri"
-```
-
-In this setup, the application remains unaware of authentication. It only receives requests after oauth2-proxy has verified the user session.
-
-The authorization model is therefore coarse-grained:
-
-```text
-oauth2-proxy decides who can access the application
-```
-
-Unlike MinIO, Mol* and the 2KLUSTER web application do not assign different internal permissions based on groups. Groups are only used to allow or deny access to the service.
-
-| Feature             | MinIO          | Mol* / 2KLUSTER  |
-| ------------------- | -------------- | ---------------- |
-| Native OIDC support | yes            | no               |
-| RBAC                | yes            | no               |
-| Groups usage        | policy mapping | access filtering |
-| Authorization level | fine-grained   | entry-level only |
-
-## Path-based routing
-
-The services are exposed through Kubernetes Ingress resources and path-based routing.
-
-Examples:
-
-```text
-/2kluster  → 2KLUSTER web application
-/molstar   → Mol* visualization service
-/console   → MinIO console
-```
-
-Ingress rewrite rules are used to forward requests correctly to applications that expect to be served from the root path.
-
-A simplified example is:
-
-```yaml
-path: /2kluster(/|$)(.*)
-rewrite-target: /$2
-```
-
-This allows requests such as:
-
-```text
-/2kluster/index.html → /index.html
-```
-
-The same logic is used for the other web-based services when required.
 
 ## Requirements
 
@@ -396,16 +252,6 @@ Before applying the manifests, replace these values according to the target infr
 
 Sensitive values, such as client secrets, cookie secrets and access credentials, should not be committed in plain text in a public repository. In a real deployment, they should be managed through Kubernetes Secrets or an external secret management system.
 
-## Deployment notes
-
-The manifests are intended as configuration templates for the proof-of-concept environment. A typical deployment order is:
-
-```bash
-# Clone the repository
-git clone https://github.com/giacomo-timelli/2KLUSTER.git
-cd 2KLUSTER
-```
-
 ### cert-manager
 
 If cert-manager is not already installed in the cluster:
@@ -420,63 +266,6 @@ Then apply the `ClusterIssuer` configuration:
 kubectl apply -f minio/manifests/clusterissuer.yaml
 ```
 
-### MinIO
-
-```bash
-kubectl apply -f minio/manifests/minio-configuration-manifest.yaml
-kubectl apply -f minio/revproxy/revproxy-minio-configuration-manifest.yaml
-```
-
-If MinIO is deployed through Helm, adapt the values file and run:
-
-```bash
-helm upgrade --install minio minio/minio \
-  --namespace minio-system \
-  --values minio/manifests/minio-helm-values.yaml
-```
-
-After deployment, configure OIDC integration and load the required policies using the MinIO client.
-
-Example:
-
-```bash
-mc admin policy create myminio minio minio/manifests/minio-user-policy.json
-```
-
-### Mol*
-
-```bash
-kubectl apply -f molstar/manifests/molstar-configuration-mainfest.yaml
-kubectl apply -f molstar/manifests/molstar-aai-configuration.yaml
-kubectl apply -f molstar/revproxy/revproxy-molstar-configuration-manifest.yaml
-```
-
-To rebuild the Mol* image:
-
-```bash
-cd molstar
-docker build -t molstar-viewer .
-```
-
-### Web application
-
-```bash
-kubectl apply -f web-app/manifests/webapp-configuration-manifest.yaml
-kubectl apply -f web-app/manifests/webapp-aai-configuration.yaml
-kubectl apply -f web-app/revproxy/revproxy-webapp-configuration-manifest.yaml
-```
-
-The deployment order may need to be adapted depending on the specific Kubernetes cluster, ingress configuration, namespace availability and secret management strategy.
-
-## Use case
-
-The platform was validated with a molecular dynamics workflow based on the APOA1 benchmark system executed with NAMD on the HPC backend.
-
-The purpose of the use case was not to perform a complete biological analysis, but to verify the end-to-end execution flow:
-
-```text
-job submission → input upload → HPC execution → output collection → MinIO storage → Mol* visualization
-```
 
 ## Security notes
 
