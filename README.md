@@ -154,7 +154,7 @@ OIDC integration can be configured with the MinIO client using:
 ```bash
 mc admin config set myminio identity_openid \
   config_url= <OPENID-CONFIGURATION-URL> \
-  client_id="<CLIENT_ID>" \
+  client_id= <CLIENT_ID> \
   claim_name="groups" \
   scopes="openid,profile,email"
 
