@@ -20,38 +20,6 @@ The general workflow is the following:
 
 This repository contains the configuration files and deployment resources used to reproduce the main components of the proof-of-concept architecture.
 
-## Repository structure
-
-```text
-2KLUSTER/
-├── minio/
-│   ├── manifests/
-│   │   ├── clusterissuer.yaml
-│   │   ├── minio-configuration-manifest.yaml
-│   │   ├── minio-helm-values.yaml
-│   │   └── minio-user-policy.json
-│   └── revproxy/
-│       └── revproxy-minio-configuration-manifest.yaml
-│
-├── molstar/
-│   ├── Dockerfile
-│   ├── manifests/
-│   │   ├── molstar-aai-configuration.yaml
-│   │   └── molstar-configuration-mainfest.yaml
-│   └── revproxy/
-│       └── revproxy-molstar-configuration-manifest.yaml
-│
-├── web-app/
-│   ├── manifests/
-│   │   ├── webapp-aai-configuration.yaml
-│   │   └── webapp-configuration-manifest.yaml
-│   └── revproxy/
-│       └── revproxy-webapp-configuration-manifest.yaml
-│
-├── LICENSE
-└── README.md
-```
-
 ## Components
 
 ### MinIO
