@@ -35,11 +35,11 @@ spec:
           image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
           args:
             - --provider=oidc
-            - --oidc-issuer-url= <oidc-issuer>
-            - --http-address= <http-address>
+            - --oidc-issuer-url= <OIDC-ISSUER>
+            - --http-address= <HTTP-ADDRESS>
             - --proxy-prefix=/oauth2-molstar
-            - --redirect-url= <redirect_url>
-            - --whitelist-domain= <host>
+            - --redirect-url= <REDIRECT-URL>
+            - --whitelist-domain= <HOST>
             - --upstream=file:///dev/null
             - --email-domain=*
             - --scope=openid profile email
@@ -121,10 +121,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - <host>
-      secretName: <tls_certificate>
+        - <HOST>
+      secretName: <TLS_CERTIFICATE>
   rules:
-    - host: <host>
+    - host: <HOST>
       http:
         paths:
           - path: /oauth2-molstar
