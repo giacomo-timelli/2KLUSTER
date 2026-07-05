@@ -265,10 +265,21 @@ Possible future improvements include:
 
 * stronger secret management;
 * private bucket policies and user-aware storage authorization;
-* token exchange for delegated access to MinIO and HPC resources;
+* token exchange for delegated access to services;
 * improved user-level job submission;
 * support for more complex multi-node Slurm workloads;
 * more complete automation of the deployment procedure.
+
+## Web application source code
+
+This repository mainly contains the Kubernetes manifests and deployment configuration files required to reproduce the 2KLUSTER proof-of-concept environment.
+
+The source code and scripts of the 2KLUSTER web application are maintained in a separate repository:
+
+[2KLUSTER Web Application Scripts](<WEB_APP_REPOSITORY_URL>)
+
+That repository includes the Python scripts used to manage the workflow logic, including job submission, interaction with MinIO object storage, OIDC/STS authentication handling, SSH communication with the bridge VM and submission to the Slurm-based HPC backend.
+
 
 ## License
 
