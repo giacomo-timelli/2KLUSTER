@@ -15,12 +15,12 @@ metadata:
   name: web-application-configmap
   namespace: web-application-ns
 data:
-  HPC_LOGIN: <<HPC_PORTAL_HOSTNAME>>
-  BRIDGE_HOST: <bridge_private_ip>
-  BRIDGE_USER: <bridge_user>
-  MINIO_ENDPOINT: <MINIO_endpoint>
-  MINIO_BUCKET: <bucket_name>
-  MINIO_CLIENT_ID: <MINIO_client_id>
+  HPC_LOGIN: <HPC_PORTAL_HOSTNAME>
+  BRIDGE_HOST: <BRIDGE-PRIVATE-IP>
+  BRIDGE_USER: <BRIDGE-USER>
+  MINIO_ENDPOINT: <MINIO-ENDPOINT>
+  MINIO_BUCKET: <BUCKET-NAME>
+  MINIO_CLIENT_ID: <MINIO_CLIENT_ID>
 
 ---
 
@@ -121,7 +121,7 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: local-storage
   local:
-    path: <local_mount_path>
+    path: <LOCAL_MOUNT_PATH>
   nodeAffinity:
     required:
       nodeSelectorTerms:
@@ -129,7 +129,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - <worker_node_1>
+                - <WORKER_NODE_1>
 ---
 
 # PeristentVolume
@@ -155,7 +155,7 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - <worker_node_2>
+                - <WORKER_NODE_2>
 ---
 
 # PersistentVolumeClaim
