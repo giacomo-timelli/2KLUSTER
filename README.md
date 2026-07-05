@@ -4,7 +4,7 @@
 
 The project was developed to support the submission, execution, storage and visualization of molecular dynamics workloads by combining Kubernetes-based services with an external Slurm-based HPC backend. The platform uses MinIO as S3-compatible object storage, OIDC-based authentication through INDIGO-IAM, a web application for job submission, and Mol* for browser-based molecular visualization.
 
-![Architecture overview](thesis_infrastructure_design.png)
+![Architecture overview](architecture_thesis.png)
 
 ## Overview
 
