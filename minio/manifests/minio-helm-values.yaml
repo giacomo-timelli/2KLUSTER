@@ -1,8 +1,8 @@
 mode: standalone
 replicas: 1
 
-rootUser: <user>
-rootPassword: <password>
+rootUser: <USER>
+rootPassword: <PASSWORD>
 
 persistence:
   enabled: true
@@ -19,7 +19,7 @@ service:
   type: ClusterIP
 
 environment:
-  MINIO_BROWSER_REDIRECT_URL: <redirect_url>
+  MINIO_BROWSER_REDIRECT_URL: <REDIRECT_URL>
 
 nodeSelector:
-  kubernetes.io/hostname: <woker_node>
+  kubernetes.io/hostname: <WORKER_NODE>
