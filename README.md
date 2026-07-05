@@ -65,32 +65,6 @@ The configuration includes:
 * oauth2-proxy configuration for authenticated access;
 * NGINX reverse proxy configuration for exposing the application under the `/2kluster` path.
 
-## Architecture
-
-The platform follows a hybrid Cloud-HPC architecture.
-
-```text
-User
- │
- ▼
-Ingress / HTTPS
- │
- ▼
-oauth2-proxy + OIDC authentication
- │
- ├── 2KLUSTER web application
- │       │
- │       ├── MinIO object storage
- │       │
- │       └── Bridge VM
- │               │
- │               └── Slurm-based HPC backend
- │
- └── Mol* visualization service
-```
-
-The Kubernetes environment hosts the user-facing and data management services, while the actual computational workload is executed on the external HPC infrastructure. This preserves a separation between the Cloud and HPC environments while still allowing them to cooperate within the same workflow.
-
 ## TLS and cert-manager setup
 
 The platform exposes its web-based services securely through HTTPS by combining an NGINX Ingress Controller with cert-manager.
