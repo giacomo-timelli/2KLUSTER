@@ -204,21 +204,6 @@ Before applying the manifests, replace these values according to the target infr
 
 Sensitive values, such as client secrets, cookie secrets and access credentials, should not be committed in plain text in a public repository. In a real deployment, they should be managed through Kubernetes Secrets or an external secret management system.
 
-
-## Security notes
-
-This repository is intended as a proof-of-concept configuration and should not be used as-is in production without additional hardening.
-
-Important security aspects include:
-
-* rotate exposed or temporary secrets;
-* avoid committing `client-secret`, `cookie-secret` or access credentials;
-* ensure HTTPS is always enabled through Ingress TLS;
-* ensure OIDC tokens include the required `groups` claim;
-* restrict MinIO policies according to the principle of least privilege;
-* prefer Kubernetes Secrets or an external secret manager for sensitive values;
-* review group membership in INDIGO-IAM before assigning administrative permissions.
-
 ## Status
 
 This repository represents an academic proof-of-concept and is not intended to be used as a production-ready deployment without further hardening.
